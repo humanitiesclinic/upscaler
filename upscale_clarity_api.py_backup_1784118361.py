@@ -186,19 +186,12 @@ class ClarityAIUpscaler:
             
             if response.status_code == 200:
                 resp_json = response.json()
-                # API returns 'message' field with image URL for crystal mode
-                img_url = resp_json.get('message') or resp_json.get('image')
-                if img_url:
-                    print(f"  Downloading from: {img_url}")
+                if 'image' in resp_json:
+                    img_url = resp_json['image']
                     img_response = requests.get(img_url, timeout=60)
                     if img_response.status_code == 200:
                         return img_response.content
-                    else:
-                        print(f"✗ Failed to download image: {img_response.status_code}")
-                        return None
-                else:
-                    print(f"✗ No image URL in response: {resp_json}")
-                    return None
+                return response.content
             else:
                 print(f"✗ API error ({response.status_code}): {response.text}")
                 return None
@@ -228,19 +221,13 @@ class ClarityAIUpscaler:
             
             if response.status_code == 200:
                 resp_json = response.json()
-                # API returns 'message' field with image URL for crystal mode
-                img_url = resp_json.get('message') or resp_json.get('image')
-                if img_url:
-                    print(f"  Downloading from: {img_url}")
+                if 'image' in resp_json:
+                    # Download the image from the returned URL
+                    img_url = resp_json['image']
                     img_response = requests.get(img_url, timeout=60)
                     if img_response.status_code == 200:
                         return img_response.content
-                    else:
-                        print(f"✗ Failed to download image: {img_response.status_code}")
-                        return None
-                else:
-                    print(f"✗ No image URL in response: {resp_json}")
-                    return None
+                return response.content
             else:
                 print(f"✗ API error ({response.status_code}): {response.text}")
                 return None
