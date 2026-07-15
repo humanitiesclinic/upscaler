@@ -1,0 +1,9 @@
+{
+  "key": "ap_7k0n09baq2xii43wr8fge9cfckk9xw625ztmlqkd",
+  "mode": "crystal",
+  "scale_factor": 2,
+  "target_megapixels": 64,
+  "creativity": 0,
+  "output_format": "jpg",
+  "output": "upscaled_output"
+}
