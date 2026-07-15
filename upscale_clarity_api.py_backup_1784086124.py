@@ -75,18 +75,6 @@ class ClarityAIUpscaler:
                 with open(dest_file, 'wb') as dst:
                     dst.write(src.read())
             
-            # Commit and push to GitHub
-            import subprocess
-            try:
-                subprocess.run(['git', 'add', 'docs/'], check=True, capture_output=True)
-                subprocess.run(['git', 'commit', '-m', f'Add {image_path.name} to docs for upscaling'], 
-                             capture_output=True)
-                subprocess.run(['git', 'push'], check=True, capture_output=True)
-                print(f"  ✓ Pushed {image_path.name} to GitHub")
-            except subprocess.CalledProcessError as git_err:
-                # If commit/push fails, still proceed (file is in docs)
-                print(f"  ⚠ Git push failed: {git_err}")
-            
             # Return GitHub Pages URL
             url = f"{self.github_pages_url}/docs/{image_path.name}"
             return url
