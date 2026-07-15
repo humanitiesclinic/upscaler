@@ -39,48 +39,28 @@ class ClarityAIUpscaler:
         """Check if file is a supported video format."""
         return file_path.suffix.lower() in self.SUPPORTED_VIDEO_FORMATS
     
-    def collect_inputs(self, inputs: List[str], file_type: str = 'image') -> Tuple[List[Path], List[str]]:
-        """Collect files, folders, and URLs. Returns (local_files, urls)."""
+    def collect_files(self, inputs: List[str], file_type: str = 'image') -> List[Path]:
+        """Collect all files from folders and file paths."""
         files = []
-        urls = []
         check_func = self.is_image if file_type == 'image' else self.is_video
         
-        for input_str in inputs:
-            # Check if it's a URL
-            if input_str.startswith('http://') or input_str.startswith('https://'):
-                urls.append(input_str)
-            else:
-                path = Path(input_str)
-                
-                if path.is_dir():
-                    # Recursively find all files in directory
-                    for item in path.rglob('*'):
-                        if item.is_file() and check_func(item):
-                            files.append(item)
-                elif path.is_file():
-                    # Check if it's a txt file with URLs
-                    if input_str.lower().endswith('.txt'):
-                        try:
-                            with open(path, 'r') as f:
-                                for line in f:
-                                    line = line.strip()
-                                    # Skip empty lines and comments
-                                    if line and not line.startswith('#'):
-                                        if line.startswith('http://') or line.startswith('https://'):
-                                            urls.append(line)
-                                        else:
-                                            print(f"⚠ Skipping invalid URL in {path.name}: {line}")
-                            print(f"  ✓ Loaded {len([u for u in urls])} URL(s) from {path.name}")
-                        except Exception as e:
-                            print(f"⚠ Failed to read {path.name}: {e}")
-                    elif check_func(path):
-                        files.append(path)
-                    else:
-                        print(f"⚠ Skipping unsupported file: {path}")
+        for input_path_str in inputs:
+            path = Path(input_path_str)
+            
+            if path.is_dir():
+                # Recursively find all files in directory
+                for item in path.rglob('*'):
+                    if item.is_file() and check_func(item):
+                        files.append(item)
+            elif path.is_file():
+                if check_func(path):
+                    files.append(path)
                 else:
-                    print(f"⚠ Not found: {input_str}")
+                    print(f"⚠ Skipping unsupported file: {path}")
+            else:
+                print(f"⚠ Not found: {input_path_str}")
         
-        return sorted(files), urls
+        return sorted(files)
     
     def upload_image_to_url(self, image_path: Path) -> Optional[str]:
         """Build GitHub Pages URL for image in docs folder."""
@@ -114,15 +94,10 @@ class ClarityAIUpscaler:
             print(f"✗ Failed to upload to docs: {e}")
             return None
     
-    def build_request_payload(self, mode: str, file_path: Optional[Path], settings: Dict, is_video: bool = False, direct_url: Optional[str] = None) -> Dict:
+    def build_request_payload(self, mode: str, file_path: Path, settings: Dict, is_video: bool = False) -> Dict:
         """Build request payload based on mode."""
         file_key = 'video' if is_video else 'image'
-        
-        # Use direct URL if provided, otherwise upload local file
-        if direct_url:
-            file_url = direct_url
-        else:
-            file_url = self.upload_image_to_url(file_path)
+        file_url = self.upload_image_to_url(file_path)  # This should be a URL
         
         payload = {
             'mode': mode,
@@ -164,41 +139,6 @@ class ClarityAIUpscaler:
             payload['webhook'] = settings['webhook']
         
         return payload
-    
-    def upscale_url(self, url: str, mode: str, settings: Dict) -> Optional[bytes]:
-        """Upscale image from direct URL via ClarityAI API."""
-        try:
-            is_video = url.lower().endswith(('.mp4', '.webm', '.mov', '.avi'))
-            payload = self.build_request_payload(mode, None, settings, is_video, direct_url=url)
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {self.api_key}'
-            }
-            
-            print(f"  Sending {url} to API with mode '{mode}'...")
-            response = requests.post(
-                self.API_ENDPOINT,
-                json=payload,
-                headers=headers,
-                timeout=300
-            )
-            
-            if response.status_code == 200:
-                resp_json = response.json()
-                if 'image' in resp_json:
-                    img_url = resp_json['image']
-                    img_response = requests.get(img_url, timeout=60)
-                    if img_response.status_code == 200:
-                        return img_response.content
-                return response.content
-            else:
-                print(f"✗ API error ({response.status_code}): {response.text}")
-                return None
-        
-        except Exception as e:
-            print(f"✗ Error processing {url}: {e}")
-            return None
     
     def upscale_file(self, file_path: Path, mode: str, settings: Dict) -> Optional[bytes]:
         """Upscale single file via ClarityAI API."""
@@ -248,21 +188,20 @@ class ClarityAIUpscaler:
             print(f"✗ Failed to save {original_path.name}: {e}")
             return False
     
-    def process_files(self, files: List[Path], urls: List[str], mode: str, settings: Dict, batch_delay: float = 1.0):
-        """Process multiple files and URLs with optional delay between requests."""
-        if not files and not urls:
-            print("No files or URLs to process.")
+    def process_files(self, files: List[Path], mode: str, settings: Dict, batch_delay: float = 1.0):
+        """Process multiple files with optional delay between requests."""
+        if not files:
+            print("No files to process.")
             return
         
-        total = len(files) + len(urls)
+        total = len(files)
         successful = 0
         failed = 0
         
-        print(f"\nProcessing {len(files)} file(s) + {len(urls)} URL(s) with mode '{mode}'...")
+        print(f"\nProcessing {total} file(s) with mode '{mode}'...")
         print(f"Settings: {json.dumps(settings, indent=2)}")
         print(f"Output: {self.output_dir.absolute()}\n")
         
-        # Process local files
         for idx, file_path in enumerate(files, 1):
             print(f"[{idx}/{total}] Processing: {file_path.name}")
             
@@ -273,31 +212,6 @@ class ClarityAIUpscaler:
                     print(f"      ✓ Saved to {self.output_dir / file_path.name}")
                     successful += 1
                 else:
-                    failed += 1
-            else:
-                failed += 1
-            
-            # Add delay between requests to avoid rate limiting
-            if idx < total:
-                time.sleep(batch_delay)
-        
-        # Process URLs
-        for idx, url in enumerate(urls, len(files) + 1):
-            print(f"[{idx}/{total}] Processing: {url}")
-            
-            upscaled = self.upscale_url(url, mode, settings)
-            
-            if upscaled:
-                # Extract filename from URL
-                url_filename = url.split('/')[-1].split('?')[0] or 'upscaled'
-                try:
-                    output_path = self.output_dir / url_filename
-                    with open(output_path, 'wb') as f:
-                        f.write(upscaled)
-                    print(f"      ✓ Saved to {output_path}")
-                    successful += 1
-                except Exception as e:
-                    print(f"✗ Failed to save {url_filename}: {e}")
                     failed += 1
             else:
                 failed += 1
@@ -343,20 +257,10 @@ Available Modes:
   clarity-pro   - Next-gen for portraits & skin
 
 Examples:
-  # Local files
   python upscale_clarity_api.py --key KEY --mode crystal image.jpg
   python upscale_clarity_api.py --key KEY --mode clarity-pro --scale 4 ./images
-  
-  # Direct URLs
-  python upscale_clarity_api.py --key KEY --mode crystal https://example.com/image.jpg
-  
-  # Txt file with URLs (one per line)
-  python upscale_clarity_api.py --key KEY --mode crystal urls.txt
-  
-  # Mixed
-  python upscale_clarity_api.py --key KEY image.jpg ./folder https://example.com/pic.jpg urls.txt
-  
-  # With settings
+  python upscale_clarity_api.py --key KEY --mode crystal-video video.mp4
+  python upscale_clarity_api.py --key KEY --mode clarity --creativity 5 --style portrait image.jpg
   python upscale_clarity_api.py --key KEY --settings config.json ./folder1 ./folder2
 
 Settings JSON format:
@@ -369,7 +273,7 @@ Settings JSON format:
         """
     )
     
-    parser.add_argument('inputs', nargs='+', help='Image/video files, folders, URLs, or txt files with URLs (one per line)')
+    parser.add_argument('inputs', nargs='+', help='Image/video files or folders')
     parser.add_argument('--key', required=True, help='ClarityAI API key')
     parser.add_argument('--mode', default='crystal', choices=list(ClarityAIUpscaler.MODES.keys()), 
                         help='Upscaling mode (default: crystal)')
@@ -424,10 +328,10 @@ Settings JSON format:
     # Initialize upscaler
     upscaler = ClarityAIUpscaler(args.key, args.output, args.github_pages_url)
     
-    # Collect and process files and URLs
+    # Collect and process files
     file_type = 'video' if args.mode == 'crystal-video' else 'image'
-    files, urls = upscaler.collect_inputs(args.inputs, file_type)
-    upscaler.process_files(files, urls, args.mode, settings, args.delay)
+    files = upscaler.collect_files(args.inputs, file_type)
+    upscaler.process_files(files, args.mode, settings, args.delay)
 
 
 if __name__ == '__main__':
