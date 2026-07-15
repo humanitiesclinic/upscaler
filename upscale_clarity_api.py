@@ -301,8 +301,13 @@ class ClarityAIUpscaler:
             upscaled = self.upscale_url(url, mode, settings)
             
             if upscaled:
-                # Extract filename from URL
-                url_filename = url.split('/')[-1].split('?')[0] or 'upscaled'
+                # Extract filename from URL or use hash-based name
+                import hashlib
+                url_filename = url.split('/')[-1].split('?')[0]
+                if not url_filename or url_filename == 'images':
+                    # Use hash of URL + index for unique names
+                    url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+                    url_filename = f"upscaled_{idx}_{url_hash}.png"
                 try:
                     output_path = self.output_dir / url_filename
                     with open(output_path, 'wb') as f:
