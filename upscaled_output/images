@@ -1,0 +1,1 @@
+{"status": 200, "message": "https://r2-us.clarityai.co/outputs/1dc0db1d89d54393ac3754267f4b2972.jpg", "balance": 2115.0, "credit_cost": 160, "cost_usd": 1.6, "logs": "\ud83d\ude80 Starting prediction\nFixed seed: 1337\nInput resolution: 463x662\nScale factor: 14.45x\nNew upscaled resolution: 6690x9565 (64.0 megapixels)"}

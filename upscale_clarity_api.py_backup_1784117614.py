@@ -370,7 +370,7 @@ Settings JSON format:
     )
     
     parser.add_argument('inputs', nargs='+', help='Image/video files, folders, URLs, or txt files with URLs (one per line)')
-    parser.add_argument('--key', help='ClarityAI API key (can be in settings JSON)')
+    parser.add_argument('--key', required=True, help='ClarityAI API key')
     parser.add_argument('--mode', default='crystal', choices=list(ClarityAIUpscaler.MODES.keys()), 
                         help='Upscaling mode (default: crystal)')
     parser.add_argument('--output', default='upscaled_output', help='Output directory')
@@ -393,16 +393,13 @@ Settings JSON format:
     parser.add_argument('--github-pages-url', default='https://humanitiesclinic.github.io/upscaler',
                         help='GitHub Pages base URL for hosting images (default: https://humanitiesclinic.github.io/upscaler)')
     
-    # Use parse_known_args to ignore unknown CLI arguments
-    args, unknown = parser.parse_known_args()
-    if unknown:
-        print(f"  ⚠ Ignoring unknown arguments: {unknown}")
+    args = parser.parse_args()
     
     # Load settings
     settings = load_settings(args.settings)
     settings['mode'] = args.mode
     
-    # Override with command-line arguments (CLI takes precedence)
+    # Override with command-line arguments
     if args.scale_factor:
         settings['scale_factor'] = args.scale_factor
     if args.creativity is not None:
@@ -424,14 +421,8 @@ Settings JSON format:
     if args.webhook:
         settings['webhook'] = args.webhook
     
-    # Get API key from CLI or settings
-    api_key = args.key or settings.get('key')
-    if not api_key:
-        print("✗ API key required: use --key or set 'key' in settings JSON")
-        sys.exit(1)
-    
     # Initialize upscaler
-    upscaler = ClarityAIUpscaler(api_key, settings.get('output', args.output), args.github_pages_url)
+    upscaler = ClarityAIUpscaler(args.key, args.output, args.github_pages_url)
     
     # Collect and process files and URLs
     file_type = 'video' if args.mode == 'crystal-video' else 'image'
