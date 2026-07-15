@@ -24,12 +24,11 @@ class ClarityAIUpscaler:
         'clarity-pro': {'desc': 'Clarity Pro - Next-gen for portraits & skin'}
     }
     
-    def __init__(self, api_key: str, output_dir: str = "upscaled_output", github_pages_url: str = "https://humanitiesclinic.github.io/upscaler"):
+    def __init__(self, api_key: str, output_dir: str = "upscaled_output"):
         """Initialize upscaler with API key and output directory."""
         self.api_key = api_key
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
-        self.github_pages_url = github_pages_url
     
     def is_image(self, file_path: Path) -> bool:
         """Check if file is a supported image format."""
@@ -63,24 +62,10 @@ class ClarityAIUpscaler:
         return sorted(files)
     
     def upload_image_to_url(self, image_path: Path) -> Optional[str]:
-        """Build GitHub Pages URL for image in docs folder."""
-        try:
-            # Copy file to docs folder if not already there
-            docs_path = Path('docs')
-            docs_path.mkdir(exist_ok=True)
-            dest_file = docs_path / image_path.name
-            
-            # Copy file to docs
-            with open(image_path, 'rb') as src:
-                with open(dest_file, 'wb') as dst:
-                    dst.write(src.read())
-            
-            # Return GitHub Pages URL
-            url = f"{self.github_pages_url}/docs/{image_path.name}"
-            return url
-        except Exception as e:
-            print(f"✗ Failed to upload to docs: {e}")
-            return None
+        """Upload image to a URL service or encode as base64 for API."""
+        # For now, return local file path - API will handle it
+        # In production, you'd upload to S3 or similar and return URL
+        return str(image_path.absolute())
     
     def build_request_payload(self, mode: str, file_path: Path, settings: Dict, is_video: bool = False) -> Dict:
         """Build request payload based on mode."""
@@ -282,8 +267,6 @@ Settings JSON format:
     parser.add_argument('--webhook', help='Webhook URL for async results')
     parser.add_argument('--delay', type=float, default=1.0, 
                         help='Delay between API requests in seconds (default: 1.0)')
-    parser.add_argument('--github-pages-url', default='https://humanitiesclinic.github.io/upscaler',
-                        help='GitHub Pages base URL for hosting images (default: https://humanitiesclinic.github.io/upscaler)')
     
     args = parser.parse_args()
     
@@ -314,7 +297,7 @@ Settings JSON format:
         settings['webhook'] = args.webhook
     
     # Initialize upscaler
-    upscaler = ClarityAIUpscaler(args.key, args.output, args.github_pages_url)
+    upscaler = ClarityAIUpscaler(args.key, args.output)
     
     # Collect and process files
     file_type = 'video' if args.mode == 'crystal-video' else 'image'
