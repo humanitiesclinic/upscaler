@@ -314,9 +314,7 @@ class ClarityAIUpscaler:
 def load_settings(settings_file: Optional[str]) -> Dict:
     """Load settings from JSON file or return defaults."""
     defaults = {
-        'scale_factor': 2,
-        'creativity': 0,
-        'output_format': 'jpg'
+        'creativity': 0
     }
     
     if settings_file and Path(settings_file).exists():
